@@ -14,7 +14,6 @@ import matplotlib
 
 matplotlib.use("Agg")  # noqa: E402
 
-import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 from matplotlib.figure import Figure  # noqa: E402
 from tqdm import tqdm  # noqa: E402
@@ -22,7 +21,6 @@ from tqdm import tqdm  # noqa: E402
 from monocular_vo.calibrate import Calibration  # noqa: E402
 from monocular_vo.depth import DEFAULT_MODEL, DepthAnything  # noqa: E402
 from monocular_vo.vo import Trajectory, step  # noqa: E402
-
 
 PANEL_W = 480
 PANEL_H = 270
