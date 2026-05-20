@@ -1,0 +1,46 @@
+[project]
+name = "monocular-vo"
+version = "0.1.0"
+description = "Monocular visual odometry with metric scale from Depth Anything v2"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Raahim Nawaz" }]
+dependencies = [
+    "numpy>=1.26",
+    "opencv-python>=4.9",
+    "torch>=2.2",
+    "torchvision>=0.17",
+    "transformers>=4.45",
+    "pillow>=10.0",
+    "matplotlib>=3.8",
+    "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/monocular_vo"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "B", "UP"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+    "downloads_model: tests that download HF model weights (skipped in CI by default)",
+]

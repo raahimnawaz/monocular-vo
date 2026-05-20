@@ -1,0 +1,20 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Captured data — too large for git; users record their own
+data/sequences/*.mp4
+data/sequences/*.avi
+data/sequences/*/frames/
+
+# Generated artifacts
+*.npz
+trajectory.csv
+metrics.json
+*.log
+
+# OS
+.DS_Store
