@@ -6,7 +6,11 @@
 
 Monocular visual odometry from a single calibrated webcam, with **metric-scale trajectory recovery** via [Depth Anything v2](https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-Indoor-Large-hf) from HuggingFace.
 
+![Demo: input frame, Depth Anything v2 metric depth, and accumulating top-down trajectory side-by-side](figures/demo.gif)
+
 Every monocular VO repo on GitHub hits the same wall: the essential-matrix formulation recovers translation only up to scale. Most repos either ignore this or hard-code a constant. This one resolves it by predicting per-pixel metric depth with a modern foundation model, backprojecting matched keypoints into 3D space in meters, and solving PnP for relative pose. The output trajectory has **real-world units**.
+
+> The demo above is a 5 m tape-measured indoor hallway walk on an Apple M5 MacBook Pro. Higher-quality MP4: [figures/demo.mp4](figures/demo.mp4).
 
 > **Status:** v1 — single-camera recording + pipeline + ground-truth scale evaluation. KITTI benchmark (v2) and pose-graph SLAM with loop closure (v3) are queued.
 

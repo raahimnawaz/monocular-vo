@@ -18,3 +18,6 @@ metrics.json
 
 # OS
 .DS_Store
+
+# Stray archive of demo asset
+figures/demo.gif.zip
