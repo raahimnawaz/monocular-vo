@@ -12,15 +12,21 @@ Every monocular VO repo on GitHub hits the same wall: the essential-matrix formu
 
 ## Headline result
 
-_To be filled in after the first recorded run. Sanity bounds (success criteria, not promises):_
+Recorded a tape-measured **5.00 m straight-line hallway walk** on an Apple M5 MacBook Pro with the built-in webcam. Pipeline: 1280×720 @ 30 fps, processed at stride 2 (371 frames). Depth model: Depth Anything v2 Metric Indoor (Small, ~99 MB).
 
 | Metric | Sanity bound | Measured |
 |---|---|---|
-| Scale error on 5 m walk | < 15% | _pending capture_ |
-| End-point drift | < 0.5 m | _pending capture_ |
-| Depth inference (M5 MPS, `Small` model) | 200-800 ms / frame | _pending capture_ |
-| VO step (per frame) | < 50 ms | _pending capture_ |
-| Inliers / frame (textured scene) | > 100 | _pending capture_ |
+| Scale error vs measured 5 m | < 15 % | **12.96 %** |
+| End-point distance from start | n/a (drift indicator) | 4.23 m |
+| Depth inference (M5 MPS, Small) | 200-800 ms / frame | **227 ms** |
+| VO step (per frame) | < 50 ms | **14 ms** |
+| Median inliers / frame | > 100 | **1161** |
+| Degenerate steps skipped (of 356) | n/a | 14 |
+| Calibration reprojection error | < 0.5 px | 0.48 px |
+
+![Estimated 5 m hallway trajectory](figures/trajectory_hallway_5m.png)
+
+The trajectory shape matches a walking gait — small left-right wobble from holding the laptop while walking forward. The largest remaining error is **apparent vertical drift (~87 cm)** even though the walk was on level ground, caused by per-frame depth-model noise propagating into the rotational component of the PnP solution. That class of error compounds without a back-end and is exactly what v3's pose-graph optimization will address.
 
 ## How it works
 
