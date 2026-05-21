@@ -29,3 +29,8 @@ metrics.json
 # Stray archive of demo asset
 figures/demo.gif.zip
 data/smoke_*.json
+
+# ONNX / TensorRT artifacts — regenerable, too large for git
+artifacts/*.onnx
+artifacts/*.trt
+artifacts/*.engine

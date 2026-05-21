@@ -156,6 +156,16 @@ Reproduce on any device:
 uv run python scripts/jetson_smoke_test.py        # writes data/smoke_<device>.json
 ```
 
+### ONNX export (Phase 2a, done)
+
+Depth Anything v2 Metric Indoor Small exports to a 94.5 MB ONNX graph (opset 17) at fixed `476×644` input. ImageNet normalization is baked into the graph so the model is preprocessing-free — drop a raw `[0, 1]` RGB image in, get a metric-depth map out. Parity vs PyTorch checked with `onnxruntime`: **max abs diff 6 × 10⁻⁶ m** on a deterministic random input.
+
+```bash
+uv run python scripts/export_depth_to_onnx.py    # writes artifacts/depth_anything_v2_small.onnx
+# Then on Jetson, Phase 2b:
+trtexec --onnx=depth_anything_v2_small.onnx --fp16 --saveEngine=depth.trt --workspace=4096
+```
+
 ## Mini SLAM (v3) — back-end architecture
 
 Beyond v1's frame-to-frame VO, the repo includes a pose-graph back-end built on [gtsam](https://gtsam.org/) with descriptor-based loop closure. Architecture:
