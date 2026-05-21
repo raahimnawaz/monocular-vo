@@ -17,6 +17,7 @@ dependencies = [
     "tqdm>=4.66",
     "imageio>=2.34",
     "imageio-ffmpeg>=0.5",
+    "gtsam>=4.2.1",
 ]
 
 [project.optional-dependencies]

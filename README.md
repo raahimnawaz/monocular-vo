@@ -107,11 +107,30 @@ monocular-vo/
     └── test_depth.py          # depth sanity (downloads HF model; gated)
 ```
 
+## Mini SLAM (v3) — back-end and loop closure
+
+Beyond v1's frame-to-frame VO, the repo includes an opt-in pose-graph back-end built on [gtsam](https://gtsam.org/) with descriptor-based loop closure. Architecture:
+
+- **Keyframe selection** (`src/monocular_vo/keyframe.py`) — promotes a frame to a keyframe when translation, rotation, or inlier-count thresholds trigger.
+- **Loop detection** (`src/monocular_vo/loop.py`) — descriptor-match the current keyframe against all temporally distant prior keyframes, then geometrically verify candidates with depth-PnP-RANSAC. A `max_relative_translation_m` filter rejects "closures" that are too far apart to be plausible revisits.
+- **Pose graph** (`src/monocular_vo/slam.py`) — gtsam `BetweenFactorPose3` for both odometry and verified loop closures; batch Levenberg-Marquardt at the end. The PnP-to-gtsam relative-pose conversion is documented inline in `slam.py`.
+
+**Validation:** the [synthetic 4-pose square-loop test](tests/test_slam.py) injects a 3 ° per-step rotational bias into odometry, accumulating ~0.5 m of endpoint drift over a closed loop. A single loop-closure factor drives drift below 5 cm after optimization (≥10× reduction). This proves the pose-graph machinery is correct in isolation.
+
+**On the hallway sequence,** with conservative defaults (high `--loop-temporal-skip` and `--loop-verify-inliers`), no loop closures are accepted and SLAM output exactly matches VO output to floating-point precision — confirming the odometry-only graph reproduces the front-end. A genuine real-world loop-closure ablation requires recording a sequence that revisits a starting point (a "v2" indoor capture covering a loop walk is queued).
+
+Run it:
+
+```bash
+uv run python scripts/run_slam.py data/sequences/<your_loop>.mp4
+# tune --loop-temporal-skip and --loop-verify-inliers if you have real loops
+```
+
 ## Roadmap
 
-- **v1 (this release):** monocular VO, metric scale via Depth Anything v2, single-walk scale-error evaluation
-- **v2:** evaluate on KITTI sequence 00, report ATE/RPE vs published baselines
-- **v3:** add g2o pose-graph back-end + DBoW2 loop closure → mini SLAM
+- **v1 (this release):** monocular VO with metric scale via Depth Anything v2, scale-error evaluation, side-by-side demo, pose-graph back-end with synthetic-loop validation
+- **v2:** evaluate on KITTI sequence 00, report ATE/RPE vs published baselines (loader + eval code already in `src/monocular_vo/{kitti,eval}.py`)
+- **v3 (in progress):** record an indoor loop sequence to demonstrate loop-closure drift correction end-to-end
 - **v4:** fuse with IMU through the EKF from [vehicle-dynamics-estimation](https://github.com/raahimnawaz/vehicle-dynamics-estimation) → visual-inertial odometry on a Jetson Nano
 
 ## Honest caveats
