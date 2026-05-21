@@ -141,6 +141,21 @@ uv run python scripts/make_slam_comparison.py \
     --save figures/tum_fr1_room_comparison.png
 ```
 
+## Hardware verification (Depth Anything v2 Small, 1280×720)
+
+Latency baseline from `scripts/jetson_smoke_test.py` so the same script can be diffed across devices once the Jetson is online.
+
+| Device | PyTorch backend | Mean latency / frame | Notes |
+|---|---|---|---|
+| Apple M5 (MacBook Pro) | MPS | **267 ms** | current dev box; baseline for VO numbers above |
+| Jetson Orin Nano Super | CUDA (PyTorch) | _pending — Phase 1 of `docs/JETSON_PLAN.md`_ | expected ~60-80 ms based on Ampere bandwidth |
+| Jetson Orin Nano Super | TensorRT FP16 | _pending — Phase 2 of `docs/JETSON_PLAN.md`_ | target ≤ 25 ms for real-time pipeline |
+
+Reproduce on any device:
+```bash
+uv run python scripts/jetson_smoke_test.py        # writes data/smoke_<device>.json
+```
+
 ## Mini SLAM (v3) — back-end architecture
 
 Beyond v1's frame-to-frame VO, the repo includes a pose-graph back-end built on [gtsam](https://gtsam.org/) with descriptor-based loop closure. Architecture:

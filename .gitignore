@@ -28,3 +28,4 @@ metrics.json
 
 # Stray archive of demo asset
 figures/demo.gif.zip
+data/smoke_*.json
