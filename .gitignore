@@ -5,10 +5,17 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 
-# Captured data — too large for git; users record their own
+# Captured data — too large for git; users record / download their own
 data/sequences/*.mp4
 data/sequences/*.avi
 data/sequences/*/frames/
+
+# TUM RGB-D dataset (787 MB unpacked)
+data/tum/rgbd_dataset_*
+data/tum/*.tgz
+
+# KITTI dataset
+data/kitti/
 
 # Generated artifacts
 *.npz

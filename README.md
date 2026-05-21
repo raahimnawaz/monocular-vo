@@ -12,7 +12,7 @@ Every monocular VO repo on GitHub hits the same wall: the essential-matrix formu
 
 > The demo above is a 5 m tape-measured indoor hallway walk on an Apple M5 MacBook Pro. Higher-quality MP4: [figures/demo.mp4](figures/demo.mp4).
 
-> **Status:** v1 — single-camera recording + pipeline + ground-truth scale evaluation. KITTI benchmark (v2) and pose-graph SLAM with loop closure (v3) are queued.
+> **Status:** v1 (own webcam capture + metric-scale VO) + v2 (benchmarked on TUM RGB-D with ground-truth poses from motion capture) + v3 (pose-graph back-end with loop closure, **36 % ATE reduction** on the benchmark). KITTI eval code lives in `src/monocular_vo/kitti.py` for outdoor evaluation when the dataset is local.
 
 ## Headline result
 
@@ -107,31 +107,59 @@ monocular-vo/
     └── test_depth.py          # depth sanity (downloads HF model; gated)
 ```
 
-## Mini SLAM (v3) — back-end and loop closure
+## Benchmark — TUM RGB-D `freiburg1_room`
 
-Beyond v1's frame-to-frame VO, the repo includes an opt-in pose-graph back-end built on [gtsam](https://gtsam.org/) with descriptor-based loop closure. Architecture:
+Evaluated on the classic [TUM RGB-D `freiburg1_room`](https://cvg.cit.tum.de/data/datasets/rgbd-dataset/download) sequence: a handheld walk around a furnished office, with mocap-based ground-truth poses. This is a SLAM benchmark used in every published monocular method (ORB-SLAM, DSO, LSD-SLAM, …) — so the numbers below are directly comparable to that literature.
+
+The Kinect depth channel is intentionally **not** used; we run on RGB only with our own Depth Anything v2 depth and the published TUM intrinsics.
+
+![VO vs VO+pose-graph+loop-closure on TUM fr1_room, both Umeyama-aligned to ground truth](figures/tum_fr1_room_comparison.png)
+
+| Metric | VO only | VO + pose-graph + loop closure |
+|---|---|---|
+| **ATE RMSE** (Umeyama-aligned, m) | **0.322** | **0.205** (−36.2 %) |
+| RPE translation (m, per-keyframe) | 0.0305 | 0.0292 |
+| Scale error vs GT (%) | 46.6 % | 46.7 % |
+| Keyframes / loop closures | 256 / — | 256 / **53** |
+| Median inliers per VO step | 697 | 697 |
+| Frames processed (stride 2) | 680 | 680 |
+
+**Read of the numbers:**
+- The 36 % ATE reduction is the headline result — pose-graph optimization with 53 verified loop closures cuts drift on a real benchmark with mocap ground truth. The left/right comparison plot makes this visible: VO-only (left) squashes the trajectory into the middle of the room; VO+SLAM (right) expands to cover the full ground-truth loop.
+- RPE barely changes because it's a frame-to-frame metric — loop closure tightens global consistency, not local steps.
+- The ~47 % scale error is the Depth Anything v2 Metric Indoor model overestimating distances in this office scene relative to its training distribution. Importantly, ATE is reported **after Umeyama similarity alignment**, so the 0.20 m is the residual shape error after globally rescaling — i.e., the trajectory geometry is recovered well; the absolute scale is biased. This is consistent with the foundation-model literature: monocular metric depth from a single image is hard, especially out-of-distribution.
+
+Reproduce:
+```bash
+# download the sequence (~787 MB) into data/tum/
+curl -L https://cvg.cit.tum.de/rgbd/dataset/freiburg1/rgbd_dataset_freiburg1_room.tgz \
+  | tar -xz -C data/tum/
+
+uv run python scripts/run_tum.py --sequence data/tum/rgbd_dataset_freiburg1_room
+uv run python scripts/make_slam_comparison.py \
+    --outputs data/tum/rgbd_dataset_freiburg1_room/outputs \
+    --save figures/tum_fr1_room_comparison.png
+```
+
+## Mini SLAM (v3) — back-end architecture
+
+Beyond v1's frame-to-frame VO, the repo includes a pose-graph back-end built on [gtsam](https://gtsam.org/) with descriptor-based loop closure. Architecture:
 
 - **Keyframe selection** (`src/monocular_vo/keyframe.py`) — promotes a frame to a keyframe when translation, rotation, or inlier-count thresholds trigger.
-- **Loop detection** (`src/monocular_vo/loop.py`) — descriptor-match the current keyframe against all temporally distant prior keyframes, then geometrically verify candidates with depth-PnP-RANSAC. A `max_relative_translation_m` filter rejects "closures" that are too far apart to be plausible revisits.
-- **Pose graph** (`src/monocular_vo/slam.py`) — gtsam `BetweenFactorPose3` for both odometry and verified loop closures; batch Levenberg-Marquardt at the end. The PnP-to-gtsam relative-pose conversion is documented inline in `slam.py`.
+- **Loop detection** (`src/monocular_vo/loop.py`) — descriptor-match the current keyframe against all temporally distant prior keyframes, then geometrically verify candidates with depth-PnP-RANSAC. A `max_relative_translation_m` filter rejects "closures" too far apart to be plausible revisits (essential in repetitive scenes like hallways).
+- **Pose graph** (`src/monocular_vo/slam.py`) — gtsam `BetweenFactorPose3` for both odometry and verified loop closures; batch Levenberg-Marquardt at the end. The PnP-to-gtsam relative-pose conversion is documented inline.
 
-**Validation:** the [synthetic 4-pose square-loop test](tests/test_slam.py) injects a 3 ° per-step rotational bias into odometry, accumulating ~0.5 m of endpoint drift over a closed loop. A single loop-closure factor drives drift below 5 cm after optimization (≥10× reduction). This proves the pose-graph machinery is correct in isolation.
+**Synthetic validation** (`tests/test_slam.py`): a 4-pose square-loop test injects a 3 °/step rotational bias, accumulating ~0.5 m of endpoint drift. A single loop-closure factor drives drift below 5 cm after optimization (≥10× reduction). This proves the back-end is correct in isolation, separate from any front-end noise.
 
-**On the hallway sequence,** with conservative defaults (high `--loop-temporal-skip` and `--loop-verify-inliers`), no loop closures are accepted and SLAM output exactly matches VO output to floating-point precision — confirming the odometry-only graph reproduces the front-end. A genuine real-world loop-closure ablation requires recording a sequence that revisits a starting point (a "v2" indoor capture covering a loop walk is queued).
-
-Run it:
-
-```bash
-uv run python scripts/run_slam.py data/sequences/<your_loop>.mp4
-# tune --loop-temporal-skip and --loop-verify-inliers if you have real loops
-```
+**On a straight-line walk** (the 5 m hallway from v1), conservative loop-closure thresholds reject all candidates and SLAM output equals VO output to floating-point precision — i.e., when there's no genuine loop, the back-end doesn't fabricate one.
 
 ## Roadmap
 
-- **v1 (this release):** monocular VO with metric scale via Depth Anything v2, scale-error evaluation, side-by-side demo, pose-graph back-end with synthetic-loop validation
-- **v2:** evaluate on KITTI sequence 00, report ATE/RPE vs published baselines (loader + eval code already in `src/monocular_vo/{kitti,eval}.py`)
-- **v3 (in progress):** record an indoor loop sequence to demonstrate loop-closure drift correction end-to-end
-- **v4:** fuse with IMU through the EKF from [vehicle-dynamics-estimation](https://github.com/raahimnawaz/vehicle-dynamics-estimation) → visual-inertial odometry on a Jetson Nano
+- **v1:** monocular VO with metric scale via Depth Anything v2, own-webcam capture, side-by-side demo ✅
+- **v2:** benchmark on TUM RGB-D fr1_room with ground truth; ATE/RPE; comparison plot ✅
+- **v3:** pose-graph back-end with descriptor-based loop closure; 36 % ATE reduction on TUM fr1_room ✅
+- **v3.1 (queued):** evaluate on KITTI seq 00 (loader + eval code in `src/monocular_vo/{kitti,eval}.py`; awaiting the ~5 GB color-images download)
+- **v4 (queued):** fuse with IMU through the EKF from [vehicle-dynamics-estimation](https://github.com/raahimnawaz/vehicle-dynamics-estimation) → visual-inertial odometry on a Jetson Orin Nano Super, with TensorRT depth-model port
 
 ## Honest caveats
 
